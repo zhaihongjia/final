@@ -1,0 +1,80 @@
+#include<iostream>
+#include<opencv2/opencv.hpp>
+using namespace std;
+using namespace cv;
+
+Mat img;
+int von_mode=1;// 0 canny  1 sobel
+int von_cannyvalue=1;
+int von_linethreshold=1;
+int von_sobelkernelsize=3;
+
+void process();
+void on_mode(int, void *){process();}
+void on_cannyvalue(int, void *){process();}
+void on_linethreshold(int, void *){process();}
+void on_sobelkernelsize(int, void *){process();}
+void process()
+{
+    Mat result;
+    switch(von_mode)
+    {
+        case 0:// canny 算子
+            Mat canny_img_gray;
+            cvtColor(img,canny_img_gray,COLOR_RGB2GRAY);
+            //imshow("canny-gray",canny_img_gray);
+            blur(canny_img_gray,canny_img_gray,Size(3,3));
+            //imshow("cann-gray-blur",canny_img_gray);
+            Mat canny;
+            Canny(canny_img_gray,canny,von_cannyvalue,von_cannyvalue*3);
+            imshow("canny",canny);
+            result=canny.clone();
+            break;
+        case 1:
+            Mat sobel_img_gray;
+            cvtColor(img,sobel_img_gray,COLOR_RGB2GRAY);
+            Mat sobel,grad_x,grad_y;
+            Sobel(sobel_img_gray,grad_x,CV_8UC1,1,0,von_sobelkernelsize);
+            Sobel(sobel_img_gray,grad_y,CV_8UC1,0,1,von_sobelkernelsize);
+            convertScaleAbs(grad_x,grad_x);
+            convertScaleAbs(grad_y,grad_y);
+            addWeighted(grad_x, 0.5, grad_y, 0.5, 0, sobel);
+            imshow("sobel",sobel);
+            result=sobel.clone();
+            break;
+
+    }
+    vector<Vec4f> lines;
+    HoughLinesP(result,lines,1,CV_PI/180.0,10,0,0);//直线阈值
+    Mat line_show(result.size(),CV_8UC3,Scalar(255,255,255));
+    for(auto line:lines)
+    {
+        cv::line(line_show,cv::Point(int(line[0]),int(line[1])),cv::Point(int(line[2]),int(line[3])),CV_RGB(0,0,0));
+    }
+    imshow("line",line_show);
+
+    waitKey(0);
+}
+
+
+int main()
+{
+    img=imread("test1.tif");
+    imshow("原图",img);
+    namedWindow("line");
+    // 参数调节
+    createTrackbar("Model Switch","line",&von_mode,5,on_mode);
+    createTrackbar("canny value","line",&von_cannyvalue,120,on_cannyvalue);
+    createTrackbar("line threshold","line",&von_linethreshold,255,on_linethreshold);
+    createTrackbar("sobel kernelsize","line",&von_sobelkernelsize,5,on_sobelkernelsize);
+    on_mode(0, nullptr);
+
+    while(1)
+    {
+        int key;
+        key=waitKey(9);
+        if((char)key == 27)
+            break;
+    }
+    return 0;
+}
